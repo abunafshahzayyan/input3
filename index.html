@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Aplikasi Input Nilai — Firestore (Mobile Friendly)</title>
+<style>
+:root {
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --accent: #06b6d4;
+  --muted: #555555;
+  --glass: rgba(255, 255, 255, 0.6);
+}
+* { box-sizing: border-box; font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+body { margin: 0; background: linear-gradient(180deg, #f0f4f8 0%, #ffffff 100%); color: #222; padding: 16px; font-size:15px; }
+h1 { font-size: 20px; margin:0; }
+.container { max-width:1100px; margin:0 auto; }
+
+/* === HEADER === */
+header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px;}
+.auth-area{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;}
+.card { background: var(--card); border-radius:16px; padding:16px; box-shadow:0 4px 16px rgba(0,0,0,0.08);}
+
+/* === TAB === */
+.tabs { display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:12px; }
+.tab { padding:8px 14px; border-radius:12px; background:var(--glass); cursor:pointer; color:var(--muted); transition: all 0.2s; flex:0 0 auto; white-space:nowrap;}
+.tab.active { background: linear-gradient(90deg, rgba(6,182,212,0.12), rgba(96,165,250,0.06)); color:#06b6d4; border:1px solid rgba(6,182,212,0.3);}
+
+/* === GRID LAYOUT === */
+.grid { display:grid; grid-template-columns: 1fr 420px; gap:16px; }
+.panel { padding:16px; border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,245,245,0.9)); border:1px solid rgba(0,0,0,0.05); }
+
+/* === INPUT === */
+label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; }
+select, input[type=text], input[type=number] { width:100%; padding:10px; border-radius:10px; border:1px solid #ccc; background:#fff; color:inherit; }
+
+/* === DAFTAR SANTRI === */
+.santri-list { max-height:380px; overflow:auto; margin-top:10px; border-radius:10px; padding:8px; border:1px dashed rgba(0,0,0,0.1); background:#fafafa;}
+.santri-row { display:flex; gap:12px; align-items:center; padding:8px; border-radius:8px;}
+.santri-row:nth-child(odd){ background: rgba(0,0,0,0.02);}
+.santri-name{flex:1;}
+.btn{display:inline-block; padding:10px 16px; border-radius:10px; cursor:pointer; border:none; background:var(--accent); color:#fff; font-weight:600; transition: all 0.2s;}
+.btn:hover{opacity:0.85;}
+.btn.ghost{background:transparent; border:1px solid #ccc; color:var(--muted); font-weight:500;}
+
+/* === TABEL TRANSAKSI === */ 
+.transactions{
+  margin-top:12px;
+  overflow-x:auto;
+  width:100%;
+  max-width:100%;
+}
+.transactions table{
+  width:100%;
+  border-collapse:collapse;
+}
+th,td{
+  padding:8px; text-align:left; border-bottom:1px solid rgba(0,0,0,0.05); font-size:13px;
+}
+th{color:var(--muted); font-weight:600;}
+.actions button{margin-right:6px;}
+.footer-note{font-size:13px; color:var(--muted); margin-top:8px;}
+
+/* === RESPONSIVE HP: FULL WIDTH === */
+@media(max-width:900px){ 
+  .grid{
+    grid-template-columns:1fr !important;
+    gap:12px;
+  }
+  .panel{
+    width:100% !important;
+  }
+}
+
+/* === RESPONSIVE: MODE LIST DUPLIKASI DATA-LABEL === */
+@media(max-width:600px){
+  body{padding:12px; font-size:14px;}
+  h1{font-size:18px;}
+  .tab{padding:6px 10px; font-size:12px;}
+  .btn{padding:8px 12px; font-size:14px;}
+  table{font-size:12px;}
+
+  .transactions table, 
+  .transactions table th,
+  .transactions table td{
+    display:block; width:100%;
+  }
+
+  .transactions table thead{display:none;}
+  .transactions table tr{
+    margin-bottom:8px; 
+    border-bottom:1px solid rgba(0,0,0,0.1);
+  }
+  .transactions table td{
+    display:flex; 
+    justify-content:space-between; 
+    padding:6px 8px;
+  }
+  .transactions table td::before{
+    content:attr(data-label);
+    font-weight:600;
+    flex-basis:40%;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Aplikasi Input Nilai — UH / PTS / PAS</h1>
+    <div class="auth-area">
+      <div id="userLabel">Offline</div>
+      <button class="btn small" id="btnLogin">Login (Google)</button>
+      <button class="btn small ghost" id="btnLogout" style="display:none">Logout</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="UH">TAB UH</div>
+      <div class="tab" data-tab="PTS">TAB PTS</div>
+      <div class="tab" data-tab="PAS">TAB PAS</div>
+      <div class="tab" data-tab="DAFTAR_SANTRI">DAFTAR SANTRI</div>
+      <div class="tab" data-tab="DAFTAR_MAPEL">DAFTAR MAPEL</div>
+      <div class="tab" data-tab="REKAP_SISWA">REKAP PER SISWA</div>
+      <div class="tab" data-tab="REKAP_MAPEL">REKAP PER MAPEL</div>
+    </div>
+
+    <div class="grid">
+      <div class="panel" id="mainPanel"></div>
+
+      <!-- PANEL TABEL (FULL HP READY) -->
+      <div class="panel" style="width:100%; max-width:100%; overflow:auto;">
+        <h3 style="margin-top:0">Tabel Transaksi Nilai</h3>
+        <div id="transactionsFilter"></div>
+        <div class="transactions card" id="transactionsPanel" style="width:100%; max-width:100%; overflow-x:auto;"></div>
+        <div class="footer-note">Data transaksi berisi semua nilai UH, PTS, PAS. Bisa edit/hapus. Disimpan di Firestore.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:18px"></div>
+  <div style="color:var(--muted);font-size:13px">
+    Tips: Gunakan tab <strong>DAFTAR SANTRI</strong> dan <strong>DAFTAR MAPEL</strong> untuk meng-custom nama santri & mapel. Perubahan langsung mempengaruhi dropdown dan daftar di tab nilai.
+  </div>
+</div>
+
+<script type="module">
+// ====== FIREBASE INIT ======
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, collection, doc, addDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+/* === GANTI DENGAN FIREBASE CONFIG ANDA JIKA PERLU === */
+const firebaseConfig = {
+  apiKey: "AIzaSyAgWrk-MjlQIsfF52UdgOGdccTlBk3ufbo",
+  authDomain: "input-nilai-online.firebaseapp.com",
+  projectId: "input-nilai-online",
+  storageBucket: "input-nilai-online.firebasestorage.app",
+  messagingSenderId: "191547680165",
+  appId: "1:191547680165:web:538040330e7b7e538a744c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth();
+
+// ====== DOM ======
+const mainPanel = document.getElementById('mainPanel');
+const transactionsPanel = document.getElementById('transactionsPanel');
+const transactionsFilter = document.getElementById('transactionsFilter');
+const userLabel = document.getElementById('userLabel');
+const btnLogin = document.getElementById('btnLogin');
+const btnLogout = document.getElementById('btnLogout');
+
+let activeTab = 'UH';
+let santriCache = [];
+let mapelCache = [];
+
+// ====== HELPERS ======
+function escapeHtml(str){ if(!str) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+function fmtDate(ts){
+  try{ if(!ts) return ''; if(ts.toDate) return ts.toDate().toLocaleString(); return String(ts); }catch(e){ return ''; }
+}
+
+// ====== COLLECTIONS ======
+const santriCol = collection(db, 'santri');
+const mapelCol = collection(db, 'mapel');
+const nilaiCol = collection(db, 'nilai');
+
+// ====== REALTIME SNAPSHOTS ======
+onSnapshot(query(santriCol, orderBy('name')), snap=>{
+  santriCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  renderActiveTab();
+  renderTransactionsWith(window._latestTx || []);
+});
+onSnapshot(query(mapelCol, orderBy('name')), snap=>{
+  mapelCache = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  renderActiveTab();
+  renderTransactionsWith(window._latestTx || []);
+});
+onSnapshot(query(nilaiCol, orderBy('createdAt','desc')), snap=>{
+  window._latestTx = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  renderTransactionsWith(window._latestTx);
+  if(activeTab==='REKAP_SISWA') renderRekapSiswa();
+});
+
+// ====== TABS ======
+document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', ()=>{
+  activeTab = t.dataset.tab;
+  renderActiveTab();
+}));
+
+function renderActiveTab(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===activeTab));
+  if(['UH','PTS','PAS'].includes(activeTab)) renderInputTab(activeTab);
+  else if(activeTab==='DAFTAR_SANTRI') renderSantriEditor();
+  else if(activeTab==='DAFTAR_MAPEL') renderMapelEditor();
+  else if(activeTab==='REKAP_SISWA') renderRekapSiswa();
+  else if(activeTab==='REKAP_MAPEL') renderRekapMapel();
+}
+
+// ====== INPUT TAB ======
+function renderInputTab(type){
+  const mapelOptions = mapelCache.length ? `<option value="">-- Pilih Mapel --</option>` + mapelCache.map(m=>`<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)}</option>`).join('') : '<option value="">-- kosong --</option>';
+  mainPanel.innerHTML = `
+    <h3>Input Nilai — ${type}</h3>
+    <label>Pilih Mapel</label>
+    <select id="selectMapel">${mapelOptions}</select>
+
+    <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+      <label style="margin-bottom:0">Skor Default kosong = tidak akan disimpan</label>
+      <button class="btn small" id="btnClearAll">Kosongkan Input</button>
+    </div>
+
+    <div style="margin-top:10px" class="santri-list" id="santriList">
+      ${santriCache.map(s => `
+        <div class="santri-row" data-id="${s.id}">
+          <div class="santri-name">${escapeHtml(s.name)}</div>
+          <div style="width:120px"><input type="number" min="0" max="100" class="input-score" data-id="${s.id}" placeholder="Nilai"></div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-top:10px" class="flex">
+      <button class="btn" id="btnSimpan">SIMPAN NILAI</button>
+      <button class="btn ghost" id="btnPreview">Tampilkan Preview</button>
+    </div>
+  `;
+  document.getElementById('btnSimpan').addEventListener('click', ()=> saveScores(type));
+  document.getElementById('btnClearAll').addEventListener('click', ()=>{ document.querySelectorAll('.input-score').forEach(i=>i.value=''); });
+  document.getElementById('btnPreview').addEventListener('click', ()=> showPreview(type));
+}
+
+async function saveScores(type){
+  const mapel = document.getElementById('selectMapel').value;
+  if(!mapel) return alert('Pilih mapel terlebih dahulu');
+  const inputs = document.querySelectorAll('.input-score');
+  let saved = 0;
+  for(const input of inputs){
+    const val = input.value.trim();
+    if(val==='') continue;
+    const num = Number(val);
+    if(isNaN(num)) continue;
+    const santri = santriCache.find(s=>s.id===input.dataset.id);
+    if(!santri) continue;
+    try{
+      await addDoc(nilaiCol, { type, mapel, santriId: santri.id, santriName: santri.name, score: num, createdAt: serverTimestamp() });
+      saved++;
+    }catch(e){
+      console.error('Gagal simpan', e);
+    }
+  }
+  alert(`${saved} nilai berhasil disimpan!`);
+}
+
+function showPreview(type){
+  const mapel = document.getElementById('selectMapel').value;
+  if(!mapel) return alert('Pilih mapel terlebih dahulu');
+  const inputs = document.querySelectorAll('.input-score');
+  const html = `<h3>Preview Nilai ${type} - ${mapel}</h3>
+    <table border="1" cellpadding="6" cellspacing="0">
+      <tr><th>Santri</th><th>Nilai</th></tr>
+      ${Array.from(inputs).map(i=>{ if(i.value.trim()==='') return ''; const s = santriCache.find(s=>s.id===i.dataset.id); return `<tr><td>${escapeHtml(s.name)}</td><td>${i.value}</td></tr>` }).join('')}
+    </table>`;
+  const w = window.open('','_blank'); w.document.write(html); w.document.close();
+}
+
+// ====== SANTRI & MAPEL EDITOR ======
+function renderSantriEditor(){
+  mainPanel.innerHTML = `<h3>DAFTAR SANTRI</h3>
+    <label>Tambah Santri</label>
+    <div class="list-editor">
+      <input type="text" id="newSantriName" placeholder="Nama santri...">
+      <button class="btn" id="btnAddSantri">Tambah</button>
+    </div>
+    <div style="margin-top:12px;max-height:420px;overflow:auto">
+      <table style="width:100%"><thead><tr><th>Nama</th><th style="width:120px">Aksi</th></tr></thead>
+      <tbody id="santriTableBody">
+        ${santriCache.map(s=>`<tr data-id="${s.id}"><td><input class="editableName" data-id="${s.id}" value="${escapeHtml(s.name)}"></td><td><button class="btn small ghost btnRemoveSantri" data-id="${s.id}">Hapus</button></td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+  document.getElementById('btnAddSantri').addEventListener('click', async ()=>{ const v = document.getElementById('newSantriName').value.trim(); if(!v) return alert('Isi nama santri terlebih dahulu'); await addDoc(collection(db,'santri'), { name: v }); document.getElementById('newSantriName').value = ''; });
+  document.querySelectorAll('.btnRemoveSantri').forEach(b=>b.addEventListener('click', async (e)=>{ const id = e.currentTarget.dataset.id; if(!confirm('Hapus santri ini?')) return; await deleteDoc(doc(db,'santri',id)); }));
+  document.querySelectorAll('.editableName').forEach(input=>input.addEventListener('change', async e=>{ const id = e.target.dataset.id; const val = e.target.value.trim(); if(!val) return alert('Tidak boleh kosong'); await updateDoc(doc(db,'santri',id),{ name: val }); }));
+}
+
+function renderMapelEditor(){
+  mainPanel.innerHTML = `<h3>DAFTAR MAPEL</h3>
+    <label>Tambah Mapel</label>
+    <div class="list-editor">
+      <input type="text" id="newMapelName" placeholder="Nama mapel...">
+      <button class="btn" id="btnAddMapel">Tambah</button>
+    </div>
+    <div style="margin-top:12px;max-height:420px;overflow:auto">
+      <table style="width:100%"><thead><tr><th>Nama Mapel</th><th style="width:120px">Aksi</th></tr></thead>
+      <tbody id="mapelTableBody">
+        ${mapelCache.map(m=>`<tr data-id="${m.id}"><td><input class="editableMapel" data-id="${m.id}" value="${escapeHtml(m.name)}"></td><td><button class="btn small ghost btnRemoveMapel" data-id="${m.id}">Hapus</button></td></tr>`).join('')}
+      </tbody></table>
+    </div>`;
+  document.getElementById('btnAddMapel').addEventListener('click', async ()=>{ const v = document.getElementById('newMapelName').value.trim(); if(!v) return alert('Isi nama mapel terlebih dahulu'); await addDoc(collection(db,'mapel'), { name: v }); document.getElementById('newMapelName').value = ''; });
+  document.querySelectorAll('.btnRemoveMapel').forEach(b=>b.addEventListener('click', async (e)=>{ const id = e.currentTarget.dataset.id; if(!confirm('Hapus mapel ini?')) return; await deleteDoc(doc(db,'mapel',id)); }));
+  document.querySelectorAll('.editableMapel').forEach(input=>input.addEventListener('change', async e=>{ const id = e.target.dataset.id; const val = e.target.value.trim(); if(!val) return alert('Tidak boleh kosong'); await updateDoc(doc(db,'mapel',id),{ name: val }); }));
+}
+
+// ====== REKAP SISWA ======
+function renderRekapSiswa() {
+  let weightUH = parseFloat(document.getElementById('weightUH')?.value) || 0.3;
+  let weightPTS = parseFloat(document.getElementById('weightPTS')?.value) || 0.3;
+  let weightPAS = parseFloat(document.getElementById('weightPAS')?.value) || 0.4;
+  const fMapel = document.getElementById('rekapFilterMapel')?.value || '';
+
+  const grouped = {};
+  (window._latestTx || []).forEach(t => {
+    if(!grouped[t.santriName]) grouped[t.santriName] = [];
+    grouped[t.santriName].push(t);
+  });
+
+  const mapelOptions = mapelCache.map(m => `<option value="${m.name}" ${fMapel===m.name?'selected':''}>${m.name}</option>`).join('');
+  let html = `
+    <h3>REKAP PER SISWA</h3>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px; align-items:center;">
+      <label>Filter Mapel:</label>
+      <select id="rekapFilterMapel">
+        <option value="">Semua Mapel</option>
+        ${mapelOptions}
+      </select>
+
+      <label>Bobot UH:</label>
+      <input type="number" id="weightUH" value="${weightUH}" step="0.05" min="0" max="1" style="width:60px;">
+      <label>Bobot PTS:</label>
+      <input type="number" id="weightPTS" value="${weightPTS}" step="0.05" min="0" max="1" style="width:60px;">
+      <label>Bobot PAS:</label>
+      <input type="number" id="weightPAS" value="${weightPAS}" step="0.05" min="0" max="1" style="width:60px;">
+      <button class="btn small" id="btnUpdateNA">Update NA</button>
+    </div>
+    <table>
+      <thead><tr><th>Santri</th><th>UH</th><th>PTS</th><th>PAS</th><th>NA</th></tr></thead>
+      <tbody>
+  `;
+
+  Object.keys(grouped).forEach(s => {
+    const arr = grouped[s].filter(t => !fMapel || t.mapel === fMapel);
+
+    const uhArr = arr.filter(t => t.type==='UH').map(t=>t.score);
+    const ptsArr = arr.filter(t => t.type==='PTS').map(t=>t.score);
+    const pasArr = arr.filter(t => t.type==='PAS').map(t=>t.score);
+
+    const uh = uhArr.length ? (uhArr.reduce((a,b)=>a+b,0)/uhArr.length).toFixed(2) : '';
+    const pts = ptsArr.length ? (ptsArr.reduce((a,b)=>a+b,0)/ptsArr.length).toFixed(2) : '';
+    const pas = pasArr.length ? (pasArr.reduce((a,b)=>a+b,0)/pasArr.length).toFixed(2) : '';
+
+    const na = (
+      (uhArr.reduce((a,b)=>a+b,0)/uhArr.length || 0) * weightUH +
+      (ptsArr.reduce((a,b)=>a+b,0)/ptsArr.length || 0) * weightPTS +
+      (pasArr.reduce((a,b)=>a+b,0)/pasArr.length || 0) * weightPAS
+    ).toFixed(2);
+
+    html += `<tr>
+      <td>${escapeHtml(s)}</td>
+      <td>${uh}</td>
+      <td>${pts}</td>
+      <td>${pas}</td>
+      <td class="na-cell">${na}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  mainPanel.innerHTML = html;
+
+  document.getElementById('rekapFilterMapel')?.addEventListener('change', renderRekapSiswa);
+  document.getElementById('btnUpdateNA')?.addEventListener('click', renderRekapSiswa);
+}
+
+// ====== REKAP MAPEL ======
+function renderRekapMapel(){
+  const grouped = {};
+  (window._latestTx||[]).forEach(t=>{ if(!grouped[t.mapel]) grouped[t.mapel]=[]; grouped[t.mapel].push(t); });
+  let html = '<h3>REKAP PER MAPEL</h3><table><thead><tr><th>Mapel</th><th>UH</th><th>PTS</th><th>PAS</th></tr></thead><tbody>';
+  Object.keys(grouped).forEach(m=>{
+    const arr = grouped[m];
+    const uh = arr.filter(t=>t.type==='UH').reduce((a,b)=>a+b.score,0);
+    const pts = arr.filter(t=>t.type==='PTS').reduce((a,b)=>a+b.score,0);
+    const pas = arr.filter(t=>t.type==='PAS').reduce((a,b)=>a+b.score,0);
+    html += `<tr><td>${escapeHtml(m)}</td><td>${uh}</td><td>${pts}</td><td>${pas}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  mainPanel.innerHTML = html;
+}
+
+// ====== TRANSAKSI PANEL DENGAN FILTER ======
+transactionsFilter.innerHTML = `
+<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+  <label style="margin-bottom:0">Tipe</label>
+  <select id="filterType"><option value="">Semua</option><option>UH</option><option>PTS</option><option>PAS</option></select>
+
+  <label style="margin-bottom:0">Mapel</label>
+  <select id="filterMapel"><option value="">Semua Mapel</option></select>
+
+  <label style="margin-bottom:0">Santri</label>
+  <select id="filterSantri"><option value="">Semua Santri</option></select>
+
+  <button class="btn small" id="btnExport">Export CSV</button>
+</div>
+`;
+
+function renderTransactionsWith(txList){
+  const mapelSelect = document.getElementById('filterMapel');
+  const santriSelect = document.getElementById('filterSantri');
+  const typeSelect = document.getElementById('filterType');
+
+  // simpan prev
+  const selectedType = typeSelect?.value || '';
+  const selectedMapel = mapelSelect?.value || '';
+  const selectedSantri = santriSelect?.value || '';
+
+  // sync dropdowns
+  if(mapelSelect && mapelCache.length){
+    mapelSelect.innerHTML = '<option value="">Semua Mapel</option>' + mapelCache.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
+    mapelSelect.value = selectedMapel;
+  }
+  if(santriSelect && santriCache.length){
+    santriSelect.innerHTML = '<option value="">Semua Santri</option>' + santriCache.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    santriSelect.value = selectedSantri;
+  }
+  if(typeSelect) typeSelect.value = selectedType;
+
+  const fType = (typeSelect?.value || '').trim();
+  const fMapel = (mapelSelect?.value || '').trim();
+  const fSantri = (santriSelect?.value || '').trim();
+
+  const arr = txList.filter(t => {
+    const matchType = !fType || t.type === fType;
+    const matchMapel = !fMapel || t.mapel === fMapel;
+    const matchSantri = !fSantri || t.santriId === fSantri;
+    return matchType && matchMapel && matchSantri;
+  });
+
+  // render table (mobile-friendly)
+  if(!arr.length){
+    transactionsPanel.innerHTML = '<div style="padding:12px;color:var(--muted)">Tidak ada transaksi sesuai filter.</div>';
+    return;
+  }
+
+  transactionsPanel.innerHTML = `<table>
+    <thead><tr><th>No</th><th>Tipe</th><th>Mapel</th><th>Santri</th><th>Nilai</th><th>Waktu</th><th>Aksi</th></tr></thead>
+    <tbody>
+      ${arr.map((t,i)=>`<tr>
+        <td data-label="No">${i+1}</td>
+        <td data-label="Tipe">${escapeHtml(t.type)}</td>
+        <td data-label="Mapel">${escapeHtml(t.mapel)}</td>
+        <td data-label="Santri">${escapeHtml(t.santriName)}</td>
+        <td data-label="Nilai">${t.score}</td>
+        <td data-label="Waktu">${fmtDate(t.createdAt)}</td>
+        <td data-label="Aksi" class="actions">
+          <button class="btn small ghost btnEditTx" data-id="${t.id}">Edit</button>
+          <button class="btn small danger btnDelTx" data-id="${t.id}">Hapus</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+
+  // delete
+  document.querySelectorAll('.btnDelTx').forEach(b=>b.addEventListener('click', async e=>{
+    const id = e.currentTarget.dataset.id;
+    if(!confirm('Hapus transaksi ini?')) return;
+    try{ await deleteDoc(doc(db,'nilai',id)); }catch(err){ console.error(err); alert('Gagal menghapus'); }
+  }));
+
+  // edit
+  document.querySelectorAll('.btnEditTx').forEach(b=>b.addEventListener('click', async e=>{
+    const id = e.currentTarget.dataset.id;
+    const d = txList.find(t=>t.id===id);
+    if(!d) return alert('Data tidak ditemukan');
+    const val = prompt(`Edit nilai ${d.santriName} (${d.type} - ${d.mapel}):`, d.score);
+    if(val===null) return;
+    const n = Number(val);
+    if(isNaN(n)) return alert('Input salah');
+    try{ await updateDoc(doc(db,'nilai',id), { score: n, updatedAt: serverTimestamp() }); }catch(err){ console.error(err); alert('Gagal update'); }
+  }));
+}
+
+// filter events
+['filterType','filterMapel','filterSantri'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', ()=> renderTransactionsWith(window._latestTx||[]));
+});
+
+// export CSV based on active filter
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  const fType = document.getElementById('filterType')?.value || '';
+  const fMapel = document.getElementById('filterMapel')?.value || '';
+  const fSantri = document.getElementById('filterSantri')?.value || '';
+
+  const tx = (window._latestTx||[]).filter(t =>
+    (!fType || t.type === fType) &&
+    (!fMapel || t.mapel === fMapel) &&
+    (!fSantri || t.santriId === fSantri)
+  );
+
+  if(!tx.length) return alert('Tidak ada data untuk diexport.');
+
+  const csvRows = ['Tipe,Mapel,Santri,Nilai,Timestamp'];
+  tx.forEach(t=>{
+    const ts = t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toISOString() : '';
+    // escape double quotes in mapel/santriName
+    const mapel = `"${(t.mapel||'').replace(/"/g,'""')}"`;
+    const santriName = `"${(t.santriName||'').replace(/"/g,'""')}"`;
+    csvRows.push(`${t.type},${mapel},${santriName},${t.score},${ts}`);
+  });
+
+  const blob = new Blob([csvRows.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'transaksi_nilai_filtered.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ====== AUTH ======
+btnLogin.addEventListener('click', async ()=>{ 
+  const provider = new GoogleAuthProvider();
+  try{ await signInWithPopup(auth, provider); }catch(e){ console.error(e); alert('Login gagal: '+ (e.message||e)); }
+});
+btnLogout.addEventListener('click', ()=> signOut(auth));
+
+onAuthStateChanged(auth, user=>{
+  if(user){ userLabel.innerText = user.displayName || user.email; btnLogin.style.display='none'; btnLogout.style.display='inline-block'; }
+  else { userLabel.innerText = 'Offline'; btnLogin.style.display='inline-block'; btnLogout.style.display='none'; }
+});
+
+// initial render
+renderActiveTab();
+renderTransactionsWith(window._latestTx||[]);
+</script>
+</body>
+</html>
