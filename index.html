@@ -103,6 +103,48 @@ th{color:var(--muted); font-weight:600;}
     flex-basis:40%;
   }
 }
+
+/* Responsive bobot input */
+@media(max-width:600px){
+  #mainPanel div[style*="display:flex"][style*="gap:12px"] {
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+  #mainPanel input[type=number] {
+    width: 100% !important;
+  }
+  #mainPanel label {
+    margin-bottom: 2px !important;
+  }
+}
+
+
+.weight-container {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.weight-item {
+  display: flex;
+  flex-direction: column;
+}
+
+@media(max-width:600px){
+  .weight-container {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .weight-item input {
+    width: 100%;
+  }
+  .weight-container button {
+    width: 100%;
+  }
+}
+
+
 </style>
 </head>
 <body>
@@ -118,13 +160,13 @@ th{color:var(--muted); font-weight:600;}
 
   <div class="card">
     <div class="tabs" id="tabs">
-      <div class="tab active" data-tab="UH">TAB UH</div>
-      <div class="tab" data-tab="PTS">TAB PTS</div>
-      <div class="tab" data-tab="PAS">TAB PAS</div>
+      <div class="tab active" data-tab="UH">INPUT UH</div>
+      <div class="tab" data-tab="PTS">INPUT PTS</div>
+      <div class="tab" data-tab="PAS">INPUT PAS</div>
       <div class="tab" data-tab="DAFTAR_SANTRI">DAFTAR SANTRI</div>
       <div class="tab" data-tab="DAFTAR_MAPEL">DAFTAR MAPEL</div>
-      <div class="tab" data-tab="REKAP_SISWA">REKAP PER SISWA</div>
-      <div class="tab" data-tab="REKAP_MAPEL">REKAP PER MAPEL</div>
+      <div class="tab" data-tab="REKAP_SISWA">REKAP PERSISWA</div>
+      <div class="tab" data-tab="REKAP_MAPEL">REKAP PERMAPEL</div>
     </div>
 
     <div class="grid">
@@ -340,21 +382,22 @@ function renderRekapSiswa() {
   const mapelOptions = mapelCache.map(m => `<option value="${m.name}" ${fMapel===m.name?'selected':''}>${m.name}</option>`).join('');
   let html = `
     <h3>REKAP PER SISWA</h3>
-    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px; align-items:center;">
-      <label>Filter Mapel:</label>
-      <select id="rekapFilterMapel">
-        <option value="">Semua Mapel</option>
-        ${mapelOptions}
-      </select>
+<div class="weight-container">
+  <div class="weight-item">
+    <label>Bobot UH:</label>
+    <input type="number" id="weightUH" value="0.3" step="0.05" min="0" max="1">
+  </div>
+  <div class="weight-item">
+    <label>Bobot PTS:</label>
+    <input type="number" id="weightPTS" value="0.3" step="0.05" min="0" max="1">
+  </div>
+  <div class="weight-item">
+    <label>Bobot PAS:</label>
+    <input type="number" id="weightPAS" value="0.4" step="0.05" min="0" max="1">
+  </div>
+  <button class="btn small" id="btnUpdateNA">Update NA</button>
+</div>
 
-      <label>Bobot UH:</label>
-      <input type="number" id="weightUH" value="${weightUH}" step="0.05" min="0" max="1" style="width:60px;">
-      <label>Bobot PTS:</label>
-      <input type="number" id="weightPTS" value="${weightPTS}" step="0.05" min="0" max="1" style="width:60px;">
-      <label>Bobot PAS:</label>
-      <input type="number" id="weightPAS" value="${weightPAS}" step="0.05" min="0" max="1" style="width:60px;">
-      <button class="btn small" id="btnUpdateNA">Update NA</button>
-    </div>
     <table>
       <thead><tr><th>Santri</th><th>UH</th><th>PTS</th><th>PAS</th><th>NA</th></tr></thead>
       <tbody>
